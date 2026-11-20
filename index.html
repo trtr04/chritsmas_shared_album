@@ -65,20 +65,17 @@ body.in3d .back{opacity:1;pointer-events:auto}
 .mc .del.sure{background:#b5432f;font:600 11px "Avenir Next",system-ui;letter-spacing:.08em}
 .mc .tag{position:absolute;top:12px;left:12px;padding:3px 8px;border-radius:10px;background:rgba(255,200,120,.85);color:#3a2416;font:600 10px "Avenir Next",system-ui;letter-spacing:.08em}
 @media (hover:none){.mc .del{opacity:1}}
-/* password gate */
-#gate{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(6,11,17,.55);backdrop-filter:blur(10px) saturate(1.15);transition:opacity .9s}
+/* password gate: just a line */
+#gate{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 50%,rgba(3,6,10,.15),rgba(3,6,10,.55));transition:opacity 1.2s}
 #gate.hide{opacity:0;pointer-events:none}
-#gate form{width:min(340px,86vw);text-align:center;padding:34px 28px 28px;border-radius:18px;background:rgba(14,22,30,.72);border:1px solid rgba(255,226,170,.22);box-shadow:0 30px 90px rgba(0,0,0,.5),0 0 80px rgba(255,190,110,.12)}
-#gate .star{font-size:26px;color:#ffd98f;text-shadow:0 0 18px rgba(255,200,110,.9)}
-#gate h1{font:italic 400 30px "Didot","Georgia",serif;margin:8px 0 4px}
-#gate p{font-size:12px;letter-spacing:.08em;color:rgba(245,238,225,.55);margin-bottom:22px;line-height:1.6}
-#gate input{display:block;width:100%;margin:0 0 12px;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,226,170,.22);background:rgba(255,255,255,.05);color:#f3ead8;font:15px "Avenir Next",system-ui;outline:none;text-align:center}
-#gate input:focus{border-color:rgba(255,226,170,.75);box-shadow:0 0 18px rgba(255,200,120,.18)}
-#gate button{width:100%;margin-top:4px;padding:12px;border-radius:999px;border:1px solid rgba(255,226,170,.5);background:rgba(255,200,120,.14);color:#fff3dc;font:500 12px "Avenir Next",system-ui;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:.25s}
-#gate button:hover{background:rgba(255,200,120,.26);box-shadow:0 0 26px rgba(255,200,120,.35)}
-#gate button:disabled{opacity:.5;cursor:wait}
-#gate .err{min-height:18px;margin-top:12px;font-size:12px;color:#ffb4a0}
+#gate form{text-align:center;transition:opacity .4s}
+#gate input{width:240px;background:none;border:0;border-bottom:1px solid rgba(243,234,216,.35);outline:none;padding:8px 0;color:#f3ead8;
+  font:italic 21px "Didot","Georgia",serif;text-align:center;letter-spacing:.06em;transition:border-color .4s}
+#gate input:focus{border-bottom-color:rgba(255,222,170,.8)}
+#gate input::placeholder{color:rgba(243,234,216,.38)}
+#gate small{display:block;margin-top:12px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:rgba(243,234,216,.35);min-height:12px}
 #gate form.shake{animation:shake .45s}
+body.gated .cap,body.gated .hint,body.gated .pill,body.gated .dock,body.gated .mark,body.gated .music{opacity:0!important;pointer-events:none!important}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 #toast{position:fixed;left:50%;bottom:72px;transform:translate(-50%,10px);z-index:25;padding:9px 16px;border-radius:999px;background:rgba(20,30,40,.85);backdrop-filter:blur(8px);font-size:13px;opacity:0;transition:.4s;pointer-events:none}
 #toast.on{opacity:1;transform:translate(-50%,0)}
@@ -123,13 +120,8 @@ body.in3d .back{opacity:1;pointer-events:auto}
 
 <div id="gate" class="hide">
   <form id="gateForm" autocomplete="off">
-    <div class="star">✦</div>
-    <h1>Lights We Kept</h1>
-    <p>a shared winter album<br>enter the album password to step inside</p>
-    <input id="gateName" placeholder="your name" maxlength="40" required>
-    <input id="gatePass" type="password" placeholder="album password" required>
-    <button id="gateBtn" type="submit">Step inside</button>
-    <div class="err" id="gateErr"></div>
+    <input id="gateInput" type="password" placeholder="password" maxlength="60" aria-label="Album password">
+    <small id="gateHint">press enter</small>
   </form>
 </div>
 <div id="toast"></div>
@@ -552,7 +544,8 @@ if(wantMusic)musicOn();
 /* ============ shared album (Supabase) ============ */
 const cloud=SUPABASE_URL&&SUPABASE_ANON_KEY&&window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
 const byId=new Map(),me={name:store.get("albumName")||""},WEEK=60*60*24*7;
-const gate=document.getElementById("gate"),gateForm=document.getElementById("gateForm"),gateErr=document.getElementById("gateErr");
+const gate=document.getElementById("gate"),gateForm=document.getElementById("gateForm"),gateIn=document.getElementById("gateInput"),gateHint=document.getElementById("gateHint");
+let gateStep="pass",gatePass="";
 let toastT=null;
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),3800)}
 
@@ -609,7 +602,7 @@ function listen(){
     else if(ev.eventType==="DELETE"){const p=byId.get(ev.old.id);if(p)removePhoto(p)}
   }).subscribe()}
 
-async function enterAlbum(){gate.classList.add("hide");
+async function enterAlbum(){gate.classList.add("hide");document.body.classList.remove("gated");
   try{await loadAlbum();listen()}catch(err){console.error(err);toast("Couldn't load the album, try refreshing")}}
 
 async function startCloud(){
@@ -618,16 +611,25 @@ async function startCloud(){
     if(!session){const r=await cloud.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session}
     const {data,error}=await cloud.from("members").select("display_name").eq("user_id",session.user.id).maybeSingle();if(error)throw error;
     if(data){me.name=data.display_name;enterAlbum()}
-    else{document.getElementById("gateName").value=me.name;gate.classList.remove("hide");setTimeout(()=>document.getElementById(me.name?"gatePass":"gateName").focus(),400)}
-  }catch(err){console.error(err);gate.classList.remove("hide");gateErr.textContent="Can't reach the album right now. Try refreshing."}}
+    else showGate();
+  }catch(err){console.error(err);showGate();gateHint.textContent="can't reach the album · try refreshing"}}
+function showGate(){document.body.classList.add("gated");gate.classList.remove("hide");setTimeout(()=>gateIn.focus(),300)}
+function gateNope(msg){gateHint.textContent=msg;gateForm.classList.remove("shake");void gateForm.offsetWidth;gateForm.classList.add("shake")}
 
-gateForm.onsubmit=async e=>{e.preventDefault();const btn=document.getElementById("gateBtn");
-  const name=document.getElementById("gateName").value.trim(),pass=document.getElementById("gatePass").value;
-  btn.disabled=true;gateErr.textContent="";
-  const {data,error}=await cloud.rpc("join_album",{passcode:pass,display_name:name});btn.disabled=false;
-  if(error||!data){gateErr.textContent=error?error.message:"That's not the album password.";
-    gateForm.classList.remove("shake");void gateForm.offsetWidth;gateForm.classList.add("shake");return}
-  me.name=name;store.set("albumName",name);document.getElementById("gatePass").value="";enterAlbum();finale()};
+// one line: the password first, then (only if this browser doesn't know you yet) your name
+gateForm.onsubmit=async e=>{e.preventDefault();const v=gateIn.value.trim();if(!v||gateIn.disabled)return;
+  if(gateStep==="pass"){gateIn.disabled=true;gateHint.textContent="";
+    const {data,error}=await cloud.rpc("join_album",{passcode:gateIn.value,display_name:me.name||"friend"});gateIn.disabled=false;
+    if(error||!data){if(error)console.warn("join_album:",error.message);gateIn.value="";gateIn.focus();
+      return gateNope(error&&/too many/i.test(error.message)?"too many tries, wait a few minutes":"incorrect password, try again")}
+    if(me.name)return gateDone();
+    gatePass=gateIn.value;gateStep="name";gateForm.style.opacity=0;
+    setTimeout(()=>{gateIn.type="text";gateIn.value="";gateIn.maxLength=40;gateIn.placeholder="your name";gateIn.setAttribute("aria-label","Your name");
+      gateHint.textContent="press enter";gateForm.style.opacity=1;gateIn.focus()},400);return}
+  // name step: save it with the membership so it's remembered on this browser
+  gateIn.disabled=true;await cloud.rpc("join_album",{passcode:gatePass,display_name:v});gateIn.disabled=false;
+  me.name=v.slice(0,40);store.set("albumName",me.name);gateDone()};
+function gateDone(){gatePass="";gateIn.value="";enterAlbum();finale()}
 
 if(cloud)startCloud();
 
