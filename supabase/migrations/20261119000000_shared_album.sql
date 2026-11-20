@@ -96,18 +96,23 @@ grant execute on function public.join_album(text, text) to authenticated;
 
 -- ---------- table access (members only) ----------
 grant select on public.members to authenticated;
+drop policy if exists "see own membership" on public.members;
 create policy "see own membership" on public.members
   for select to authenticated using (user_id = auth.uid());
 
 grant select, insert, delete on public.photos to authenticated;
 grant update (caption) on public.photos to authenticated;      -- only the caption can be edited
 
+drop policy if exists "members view photos" on public.photos;
 create policy "members view photos" on public.photos
   for select to authenticated using (private.is_member());
+drop policy if exists "members add photos" on public.photos;
 create policy "members add photos" on public.photos
   for insert to authenticated with check (private.is_member() and added_by = auth.uid());
+drop policy if exists "members rename photos" on public.photos;
 create policy "members rename photos" on public.photos
   for update to authenticated using (private.is_member()) with check (private.is_member());
+drop policy if exists "members delete photos" on public.photos;
 create policy "members delete photos" on public.photos
   for delete to authenticated using (private.is_member());
 
@@ -116,12 +121,19 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('photos', 'photos', false, 10485760, array['image/jpeg', 'image/png', 'image/webp'])
 on conflict (id) do nothing;
 
+drop policy if exists "members read album files" on storage.objects;
 create policy "members read album files" on storage.objects
   for select to authenticated using (bucket_id = 'photos' and private.is_member());
+drop policy if exists "members upload album files" on storage.objects;
 create policy "members upload album files" on storage.objects
   for insert to authenticated with check (bucket_id = 'photos' and private.is_member());
+drop policy if exists "members delete album files" on storage.objects;
 create policy "members delete album files" on storage.objects
   for delete to authenticated using (bucket_id = 'photos' and private.is_member());
 
 -- ---------- live updates ----------
-alter publication supabase_realtime add table public.photos;
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'photos') then
+    alter publication supabase_realtime add table public.photos;
+  end if;
+end $$;
